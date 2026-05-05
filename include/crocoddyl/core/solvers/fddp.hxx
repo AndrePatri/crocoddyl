@@ -206,14 +206,15 @@ bool SolverFDDPTpl<Scalar>::checkAcceptance() {
   // progress in the iteration.
   acceptstep_ = acceptsCurrentStep();
   if (dyn_solver_ == DynamicsSolverType::MultiShoot) {
-    const bool raw_acceptstep = acceptstep_;
-    const bool should_restore =
-        !acceptstep_ || ffeas_try_ > Scalar(1e-8);
-    if (should_restore && tryMultishootRestorationStep(steplength_)) {
+    acceptstep_ = acceptstep_ && acceptsMultishootFeasibility();
+    if (acceptstep_) {
+      return acceptstep_;
+    }
+    if (tryMultishootRestorationStep(steplength_)) {
       acceptstep_ = true;
       return acceptstep_;
     }
-    acceptstep_ = raw_acceptstep && acceptsMultishootFeasibility();
+    acceptstep_ = false;
   }
   return acceptstep_;
 }
@@ -265,7 +266,11 @@ bool SolverFDDPTpl<Scalar>::tryMultishootRestorationStep(
     const Scalar steplength) {
   const Scalar rejected_cost = cost_try_;
   const Scalar rejected_ffeas = ffeas_try_;
-  singleShootForwardPass(steplength);
+  try {
+    singleShootForwardPass(steplength);
+  } catch (...) {
+    return false;
+  }
   for (std::size_t i = 0; i < fs_try_.size(); ++i) {
     fs_try_[i].setZero();
   }
