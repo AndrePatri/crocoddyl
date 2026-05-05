@@ -345,6 +345,21 @@ class SolverFDDPTpl : public SolverAbstractTpl<_Scalar> {
   virtual void singleShootForwardPass(const Scalar steplength);
 
   /**
+   * @brief Try a feasibility-restoration forward pass for multiple shooting.
+   */
+  bool tryMultishootRestorationStep(const Scalar steplength);
+
+  /**
+   * @brief Check the Armijo-style acceptance rule without restoration.
+   */
+  bool acceptsCurrentStep() const;
+
+  /**
+   * @brief Check the multiple-shooting feasibility filter.
+   */
+  bool acceptsMultishootFeasibility() const;
+
+  /**
    * @brief Update the candidate solution: cost, feasibilities, and merit value
    */
   void updateCandidate() override;
