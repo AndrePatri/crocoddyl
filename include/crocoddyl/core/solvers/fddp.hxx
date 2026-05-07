@@ -60,6 +60,11 @@ void SolverFDDPTpl<Scalar>::computeDirection(const bool recalc) {
   // Update the batch's derivatives
   if (recalc) {
     SolverAbstract::calcDir();
+    const std::size_t n_direction_callbacks = direction_callbacks_.size();
+    for (std::size_t c = 0; c < n_direction_callbacks; ++c) {
+      CallbackAbstract& callback = *direction_callbacks_[c];
+      callback(*this);
+    }
   }
   // Update the search direction associated with the batch's internal
   // constraints
@@ -75,6 +80,18 @@ void SolverFDDPTpl<Scalar>::computeDirection(const bool recalc) {
     linearRollout();
   }
   STOP_PROFILER("SolverFDDP::computeDirection");
+}
+
+template <typename Scalar>
+void SolverFDDPTpl<Scalar>::setDirectionCallbacks(
+    const std::vector<std::shared_ptr<CallbackAbstract>>& callbacks) {
+  direction_callbacks_ = callbacks;
+}
+
+template <typename Scalar>
+const std::vector<std::shared_ptr<CallbackAbstractTpl<Scalar>>>&
+SolverFDDPTpl<Scalar>::getDirectionCallbacks() const {
+  return direction_callbacks_;
 }
 
 template <typename Scalar>
@@ -928,6 +945,7 @@ SolverFDDPTpl<NewScalar> SolverFDDPTpl<Scalar>::cast() const {
   }
   // Setting the abstract parameters
   ret.setCallbacks(vector_cast<NewScalar>(callbacks_));
+  ret.setDirectionCallbacks(vector_cast<NewScalar>(direction_callbacks_));
   ret.set_th_acceptstep(scalar_cast<NewScalar>(th_acceptstep_));
   ret.set_th_gaptol(scalar_cast<NewScalar>(th_gaptol_));
   ret.set_feasnorm(feasnorm_);
