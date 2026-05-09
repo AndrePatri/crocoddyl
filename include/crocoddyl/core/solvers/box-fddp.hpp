@@ -36,6 +36,7 @@ class SolverBoxFDDPTpl : public SolverFDDPTpl<_Scalar> {
                             const EqualitySolverType term_solver = LuNull);
   virtual ~SolverBoxFDDPTpl() = default;
 
+  virtual void computeCandidate(const Scalar steplength = Scalar(1.)) override;
   virtual void computePolicy(const std::size_t t) override;
   virtual void forwardPass(const Scalar steplength);
 

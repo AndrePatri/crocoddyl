@@ -65,11 +65,22 @@ void SolverBoxFDDPTpl<Scalar>::allocateData() {
 }
 
 template <typename Scalar>
+void SolverBoxFDDPTpl<Scalar>::computeCandidate(const Scalar steplength) {
+  START_PROFILER("SolverBoxFDDP::computeCandidate");
+  // SolverFDDP::computeCandidate() calls SolverFDDP::forwardPass(), which is
+  // intentionally non-virtual in the base class.  Call the BoxFDDP forward pass
+  // explicitly so trial controls are clamped to each model's u_lb/u_ub before
+  // evaluating the action models.
+  forwardPass(steplength);
+  this->updateDualsAndSlacks(steplength);
+  STOP_PROFILER("SolverBoxFDDP::computeCandidate");
+}
+
+template <typename Scalar>
 void SolverBoxFDDPTpl<Scalar>::computePolicy(const std::size_t t) {
   const std::size_t nu = problem_->get_runningModels()[t]->get_nu();
   if (nu > 0) {
-    if (!problem_->get_runningModels()[t]->get_has_control_limits() ||
-        !is_feasible_) {
+    if (!problem_->get_runningModels()[t]->get_has_control_limits()) {
       // No control limits on this model: Use vanilla DDP
       SolverFDDP::computePolicy(t);
       return;
