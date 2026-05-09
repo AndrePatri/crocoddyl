@@ -80,7 +80,8 @@ template <typename Scalar>
 void SolverBoxFDDPTpl<Scalar>::computePolicy(const std::size_t t) {
   const std::size_t nu = problem_->get_runningModels()[t]->get_nu();
   if (nu > 0) {
-    if (!problem_->get_runningModels()[t]->get_has_control_limits()) {
+    if (!problem_->get_runningModels()[t]->get_has_control_limits() ||
+        !is_feasible_) {
       // No control limits on this model: Use vanilla DDP
       SolverFDDP::computePolicy(t);
       return;
