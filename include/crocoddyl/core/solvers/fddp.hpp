@@ -107,25 +107,6 @@ class SolverFDDPTpl : public SolverAbstractTpl<_Scalar> {
   virtual void computeDirection(const bool recalc = true) override;
 
   /**
-   * @brief Set callbacks executed after `calcDir()` and before the backward
-   * pass.
-   *
-   * These callbacks are intended for auxiliary data that depends on the fresh
-   * action derivatives and must stay frozen during the following line search.
-   * The default callback list is empty, so the solver behavior is unchanged.
-   *
-   * @param  callbacks  direction callbacks
-   */
-  void setDirectionCallbacks(
-      const std::vector<std::shared_ptr<CallbackAbstract>>& callbacks);
-
-  /**
-   * @brief Return the callbacks executed after `calcDir()`.
-   */
-  const std::vector<std::shared_ptr<CallbackAbstract>>& getDirectionCallbacks()
-      const;
-
-  /**
    * @copybrief SolverAbstract::computeCandidate
    */
   virtual void computeCandidate(const Scalar step_length = Scalar(1.)) override;
@@ -362,21 +343,6 @@ class SolverFDDPTpl : public SolverAbstractTpl<_Scalar> {
    * @param[in] steplength  applied step length (\f$0\leq\alpha\leq1\f$)
    */
   virtual void singleShootForwardPass(const Scalar steplength);
-
-  /**
-   * @brief Try a feasibility-restoration forward pass for multiple shooting.
-   */
-  bool tryMultishootRestorationStep(const Scalar steplength);
-
-  /**
-   * @brief Check the Armijo-style acceptance rule without restoration.
-   */
-  bool acceptsCurrentStep() const;
-
-  /**
-   * @brief Check the multiple-shooting feasibility filter.
-   */
-  bool acceptsMultishootFeasibility() const;
 
   /**
    * @brief Update the candidate solution: cost, feasibilities, and merit value
@@ -747,8 +713,6 @@ class SolverFDDPTpl : public SolverAbstractTpl<_Scalar> {
   bool zero_upsilon_;  //!< True if we wish to set estimated penalty parameter
                        //!< (upsilon) to zero when solve is called.
   std::vector<std::size_t> Ts_;  //!< Index that describes the hybrid shoots
-  std::vector<std::shared_ptr<CallbackAbstract>>
-      direction_callbacks_;  //!< Post-calcDir, pre-backward-pass callbacks
 
   // allocate data
   MatrixXs Vxx_tmp_;  //!< Temporary variable for ensuring symmetry of Vxx

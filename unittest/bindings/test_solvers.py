@@ -10,38 +10,6 @@ from factory import SolverFDDP
 import crocoddyl
 
 
-class CountingDirectionCallback(crocoddyl.CallbackAbstract):
-    def __init__(self):
-        crocoddyl.CallbackAbstract.__init__(self)
-        self.calls = 0
-        self.iterations = []
-
-    def __call__(self, solver):
-        self.calls += 1
-        self.iterations.append(int(solver.iter))
-
-
-class FDDPDirectionCallbackTest(unittest.TestCase):
-    def test_direction_callback_runs_after_recalc_only(self):
-        model = crocoddyl.ActionModelLQR(4, 2)
-        x0 = model.state.zero()
-        problem = crocoddyl.ShootingProblem(x0, [model] * 3, model)
-        solver = crocoddyl.SolverFDDP(problem)
-        callback = CountingDirectionCallback()
-        solver.setDirectionCallbacks([callback])
-
-        xs = [model.state.zero() for _ in range(problem.T + 1)]
-        us = [np.zeros(model.nu) for _ in range(problem.T)]
-        solver.setCandidate(xs, us, False)
-
-        solver.computeDirection(True)
-        self.assertEqual(callback.calls, 1)
-        self.assertEqual(len(solver.getDirectionCallbacks()), 1)
-
-        solver.computeDirection(False)
-        self.assertEqual(callback.calls, 1)
-
-
 class SolverAbstractTestCase(unittest.TestCase):
     MODEL = None
     SOLVER = None

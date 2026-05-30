@@ -33,11 +33,6 @@ SolverFDDPTpl<Scalar>::SolverFDDPTpl(std::shared_ptr<ShootingProblem> problem,
       zero_upsilon_(false) {
   // Allocating the solver's data
   allocateData();
-  const std::size_t n_alphas = 18;
-  alphas_.resize(n_alphas);
-  for (std::size_t n = 0; n < n_alphas; ++n) {
-    alphas_[n] = Scalar(1.) / pow(Scalar(2.), static_cast<Scalar>(n));
-  }
   // Setting the dynamics solver
   switch (dyn_solver) {
     case HybridShoot: {
@@ -60,11 +55,6 @@ void SolverFDDPTpl<Scalar>::computeDirection(const bool recalc) {
   // Update the batch's derivatives
   if (recalc) {
     SolverAbstract::calcDir();
-    const std::size_t n_direction_callbacks = direction_callbacks_.size();
-    for (std::size_t c = 0; c < n_direction_callbacks; ++c) {
-      CallbackAbstract& callback = *direction_callbacks_[c];
-      callback(*this);
-    }
   }
   // Update the search direction associated with the batch's internal
   // constraints
@@ -80,18 +70,6 @@ void SolverFDDPTpl<Scalar>::computeDirection(const bool recalc) {
     linearRollout();
   }
   STOP_PROFILER("SolverFDDP::computeDirection");
-}
-
-template <typename Scalar>
-void SolverFDDPTpl<Scalar>::setDirectionCallbacks(
-    const std::vector<std::shared_ptr<CallbackAbstract>>& callbacks) {
-  direction_callbacks_ = callbacks;
-}
-
-template <typename Scalar>
-const std::vector<std::shared_ptr<CallbackAbstractTpl<Scalar>>>&
-SolverFDDPTpl<Scalar>::getDirectionCallbacks() const {
-  return direction_callbacks_;
 }
 
 template <typename Scalar>
@@ -221,98 +199,32 @@ bool SolverFDDPTpl<Scalar>::checkAcceptance() {
   // algorithm's globalization. Finally, we accept any improvement for step
   // lengths smaller than th_acceptMinStep. This ensures any possible
   // progress in the iteration.
-  acceptstep_ = acceptsCurrentStep();
-  if (dyn_solver_ == DynamicsSolverType::MultiShoot) {
-    acceptstep_ = acceptstep_ && acceptsMultishootFeasibility();
-    if (acceptstep_) {
-      return acceptstep_;
-    }
-    if (tryMultishootRestorationStep(steplength_)) {
-      acceptstep_ = true;
-      return acceptstep_;
-    }
-    acceptstep_ = false;
-  }
-  return acceptstep_;
-}
-
-template <typename Scalar>
-bool SolverFDDPTpl<Scalar>::acceptsCurrentStep() const {
-  bool acceptstep = false;
+  acceptstep_ = false;
   if ((std::abs(dPhi_) <= th_noimprovement_) &&
       (std::abs(dPhiexp_) <= th_noimprovement_)) {
-    acceptstep = true;  // we can't make further improvement
+    acceptstep_ = true;  // we can't make further improvement
   } else if (dPhiexp_ >= Scalar(0.)) {
     if (dPhi_ > Scalar(0.)) {
       if (dPhi_ > th_acceptstep_ * dPhiexp_ || std::abs(DV_[1]) < th_grad_) {
-        acceptstep = true;
+        acceptstep_ = true;
       }
     } else if (dV_ > th_acceptstep_ * dVexp_ || std::abs(DV_[1]) < th_grad_) {
-      acceptstep = true;
+      acceptstep_ = true;
     }
   } else {
     if (feas_ <= th_stop_) {
       if (dPhi_ > th_acceptnegstep_ * dPhiexp_) {
-        acceptstep = true;
+        acceptstep_ = true;
       }
     } else if (dV_ > th_acceptnegstep_ * dVexp_) {
-      acceptstep = true;
+      acceptstep_ = true;
     }
   }
   // TODO: accept dImpr > 0 when allocated time has been reached (c++)
   if (steplength_ <= th_acceptminstep_ && dImpr_ > Scalar(0.)) {
-    acceptstep = true;
+    acceptstep_ = true;
   }
-  return acceptstep;
-}
-
-template <typename Scalar>
-bool SolverFDDPTpl<Scalar>::acceptsMultishootFeasibility() const {
-  const Scalar tube = Scalar(2e-2);
-  if (ffeas_try_ <= tube) {
-    return true;
-  }
-  if (ffeas_ <= tube) {
-    return false;
-  }
-  return ffeas_try_ <= Scalar(1.05) * ffeas_;
-}
-
-template <typename Scalar>
-bool SolverFDDPTpl<Scalar>::tryMultishootRestorationStep(
-    const Scalar steplength) {
-  const Scalar rejected_cost = cost_try_;
-  const Scalar rejected_ffeas = ffeas_try_;
-  try {
-    singleShootForwardPass(steplength);
-  } catch (...) {
-    return false;
-  }
-  for (std::size_t i = 0; i < fs_try_.size(); ++i) {
-    fs_try_[i].setZero();
-  }
-  updateDualsAndSlacks(steplength);
-  dVexp_ = DV_[0] + steplength * (DV_[1] + Scalar(0.5) * steplength * DV_[2]);
-  dV_ = cost_ - cost_try_;
-  ffeas_try_ = computeFeasibility(fs_try_);
-  gfeas_try_ = computeInequalityFeasibility();
-  hfeas_try_ = computeEqualityFeasibility();
-  dfeas_ = ffeas_ - ffeas_try_;
-  dfeas_ += gfeas_ - gfeas_try_;
-  dfeas_ += hfeas_ - hfeas_try_;
-  computeMeritFunctionImprovement();
-  computeExpectedMeritFunctionImprovement();
-  dImpr_ = std::max(dV_, dPhi_);
-  const bool acceptstep = acceptsCurrentStep() && acceptsMultishootFeasibility();
-  if (acceptstep) {
-    std::cout << "[SolverFDDP] multiple-shooting restoration step at iter "
-              << iter_ << ", alpha=" << steplength
-              << ": rejected trial cost=" << rejected_cost
-              << ", ffeas=" << rejected_ffeas
-              << "; restored trial cost=" << cost_try_
-              << ", ffeas=" << ffeas_try_ << std::endl;
-  }
-  return acceptstep;
+  return acceptstep_;
 }
 
 template <typename Scalar>
@@ -945,7 +857,6 @@ SolverFDDPTpl<NewScalar> SolverFDDPTpl<Scalar>::cast() const {
   }
   // Setting the abstract parameters
   ret.setCallbacks(vector_cast<NewScalar>(callbacks_));
-  ret.setDirectionCallbacks(vector_cast<NewScalar>(direction_callbacks_));
   ret.set_th_acceptstep(scalar_cast<NewScalar>(th_acceptstep_));
   ret.set_th_gaptol(scalar_cast<NewScalar>(th_gaptol_));
   ret.set_feasnorm(feasnorm_);

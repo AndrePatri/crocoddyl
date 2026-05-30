@@ -77,17 +77,6 @@ struct SolverFDDPVisitor : public bp::def_visitor<SolverFDDPVisitor<Model>> {
                  "variations are stored internally (dxs_, dus_, lambdas_).\n"
                  ":param recalc: request a fresh derivative computation before "
                  "building the search direction (default True)."))
-        .def("setDirectionCallbacks", &Model::setDirectionCallbacks,
-             bp::args("self", "callbacks"),
-             "Set callbacks executed after calcDir() and before the backward "
-             "pass.\n\n"
-             "These callbacks can refresh auxiliary problem data that depends "
-             "on the fresh action derivatives and must stay frozen during the "
-             "following line search. The default list is empty.")
-        .def("getDirectionCallbacks", &Model::getDirectionCallbacks,
-             bp::return_value_policy<bp::copy_const_reference>(),
-             bp::args("self"),
-             "Return the callbacks executed after calcDir().")
         .def("tryStep", &tryStep,
              SolverFDDP_trySteps(
                  bp::args("self", "stepLength"),
