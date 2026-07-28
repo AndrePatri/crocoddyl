@@ -83,6 +83,11 @@ bool SolverAbstractTpl<Scalar>::solve(const std::vector<VectorXs>& init_xs,
     dVexp_full_ = DV_[0] + DV_[1] + Scalar(0.5) * DV_[2];
     updateMeritFunction();
     // Try and evaluate the search direction
+    // A previous iteration may have accepted a step. Reset the flag before
+    // trying the new direction so an iteration where every forward trial
+    // throws is treated as rejected and the nominal action data are
+    // recomputed by the next derivative pass.
+    acceptstep_ = false;
     for (typename std::vector<Scalar>::const_iterator it = alphas_.begin();
          it != alphas_.end(); ++it) {
       // TODO: break the forward pass if the allocated time has been reached
